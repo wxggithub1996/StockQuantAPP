@@ -1,0 +1,35 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": { "navigationBarTitleText": "量化终端" }
+		},
+		{
+			"path": "pages/log/log",
+			"style": { "navigationBarTitleText": "操作日志" }
+		},
+		{
+			"path": "pages/kline/kline",
+			"style": { "navigationBarTitleText": "行情详情" }
+		},
+		{
+			"path": "pages/index/log/log",
+			"style": {
+				"navigationBarTitleText": ""
+			}
+		},
+		{
+			"path": "pages/index/kline/kline",
+			"style": {
+				"navigationBarTitleText": ""
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"uniIdRouter": {}
+}
