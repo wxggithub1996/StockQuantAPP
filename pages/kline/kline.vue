@@ -291,72 +291,100 @@ export default {
 		},
 
 		drawChart(data) {
-			if (!myChart) return;
-			
-			const dates = data.map(item => item.date);
-			const kData = data.map(item => [item.open, item.close, item.low, item.high]);
-			const volData = data.map(item => ({
-				value: item.volume,
-				itemStyle: { color: item.close >= item.open ? '#e83828' : '#00a854' }
-			}));
-
-			const option = {
-				animation: false,
-				tooltip: { 
-					show: true, showContent: true, 
-					trigger: 'axis', axisPointer: { type: 'cross' }, 
-					backgroundColor: 'rgba(255, 255, 255, 0.95)', padding: 8, textStyle: { fontSize: 11 },
-					formatter: function(params) {
-						let i = params[0].dataIndex; let d = data[i]; 
-						let preClose = i > 0 ? data[i-1].close : d.open;
-						let pctChg = ((d.close - preClose) / preClose * 100).toFixed(2); 
-						let pctColor = pctChg > 0 ? '#e83828' : (pctChg < 0 ? '#00a854' : '#333'); 
-						let sign = pctChg > 0 ? '+' : '';
-						
-						let hands = d.volume / 100;
-						let vStr = hands >= 10000 ? (hands/10000).toFixed(2)+'万手' : hands.toFixed(0)+'手';
-						
-						return `<div style="font-family: sans-serif;">
-							<div style="margin-bottom: 3px; border-bottom: 1px solid #eee; padding-bottom: 3px;"><b>${d.date}</b></div>
-							开: ${d.open.toFixed(2)} &nbsp; 收: <span style="color:${d.close>d.open?'#e83828':'#00a854'}">${d.close.toFixed(2)}</span><br/>
-							高: ${d.high.toFixed(2)} &nbsp; 低: ${d.low.toFixed(2)}<br/>
-							涨幅: <b style="color:${pctColor}">${sign}${pctChg}%</b><br/>
-							量: ${vStr} &nbsp; 换手: <b style="color:#d46b08">${(d.turn||0).toFixed(2)}%</b>
-						</div>`;
-					}
+					if (!myChart) return;
+					
+					const dates = data.map(item => item.date);
+					const kData = data.map(item => [item.open, item.close, item.low, item.high]);
+					const volData = data.map(item => ({
+						value: item.volume,
+						itemStyle: { color: item.close >= item.open ? '#e83828' : '#00a854' }
+					}));
+		
+					// 🚨 优化1：动态计算最近 60 个交易日的精确索引
+					const totalPoints = data.length;
+					const startIdx = Math.max(0, totalPoints - 60);
+		
+					const option = {
+						animation: false,
+						tooltip: { 
+							show: true, showContent: true, 
+							trigger: 'axis', axisPointer: { type: 'cross' }, 
+							backgroundColor: 'rgba(255, 255, 255, 0.95)', padding: 8, textStyle: { fontSize: 11 },
+							formatter: function(params) {
+								let i = params[0].dataIndex; let d = data[i]; 
+								let preClose = i > 0 ? data[i-1].close : d.open;
+								let pctChg = ((d.close - preClose) / preClose * 100).toFixed(2); 
+								let pctColor = pctChg > 0 ? '#e83828' : (pctChg < 0 ? '#00a854' : '#333'); 
+								let sign = pctChg > 0 ? '+' : '';
+								
+								let hands = d.volume / 100;
+								let vStr = hands >= 10000 ? (hands/10000).toFixed(2)+'万手' : hands.toFixed(0)+'手';
+								
+								return `<div style="font-family: sans-serif;">
+									<div style="margin-bottom: 3px; border-bottom: 1px solid #eee; padding-bottom: 3px;"><b>${d.date}</b></div>
+									开: ${d.open.toFixed(2)} &nbsp; 收: <span style="color:${d.close>d.open?'#e83828':'#00a854'}">${d.close.toFixed(2)}</span><br/>
+									高: ${d.high.toFixed(2)} &nbsp; 低: ${d.low.toFixed(2)}<br/>
+									涨幅: <b style="color:${pctColor}">${sign}${pctChg}%</b><br/>
+									量: ${vStr} &nbsp; 换手: <b style="color:#d46b08">${(d.turn||0).toFixed(2)}%</b>
+								</div>`;
+							}
+						},
+						axisPointer: { link: { xAxisIndex: 'all' } },
+						// 🚨 优化2：稍微压缩 K 线和成交量的高度，给底部增高的滑块腾出空间
+						grid: [
+							{ left: '10%', right: '4%', top: '6%', height: '58%' },  // 主图高度 58%
+							{ left: '10%', right: '4%', top: '70%', height: '14%' }  // 副图高度 14%
+						],
+						xAxis: [
+							{ type: 'category', data: dates, boundaryGap: true, axisLine: { onZero: false }, splitLine: { show: false }, axisLabel: { fontSize: 10 } },
+							{ type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisTick: { show: false } }
+						],
+						yAxis: [
+							{ scale: true, splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }, axisLabel: { fontSize: 10 } },
+							{ scale: true, gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } }
+						],
+						dataZoom: [
+							{ 
+								type: 'inside', 
+								xAxisIndex: [0, 1], 
+								startValue: startIdx,   // 内部滑动也绑定到精确索引
+								endValue: totalPoints - 1 
+							},
+							{ 
+								type: 'slider', 
+								xAxisIndex: [0, 1], 
+								bottom: '2%',           // 贴近底部
+								height: 32,             // 🚨 优化3：高度从默认增加到 32px，手指更容易点中
+								startValue: startIdx,   // 默认只加载 startIdx(近60天) 到结尾
+								endValue: totalPoints - 1,
+								handleSize: '150%',     // 🚨 优化4：将左右两侧用于拖拽的把手放大 1.5倍，解决边缘拖动不灵敏的问题
+								// 使用带把手的专业图标
+								handleIcon: 'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+								dataBackground: {
+									lineStyle: { color: '#1890ff' },
+									areaStyle: { color: '#1890ff', opacity: 0.1 }
+								},
+								selectedDataBackground: {
+									lineStyle: { color: '#1890ff' },
+									areaStyle: { color: '#1890ff', opacity: 0.3 }
+								}
+							}
+						],
+						series: [
+							{ name: '日K', type: 'candlestick', data: kData, itemStyle: { color: '#e83828', color0: '#00a854', borderColor: '#e83828', borderColor0: '#00a854' } },
+							{ name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volData }
+						]
+					};
+					
+					myChart.setOption(option);
+					
+					myChart.off('updateAxisPointer');
+					myChart.on('updateAxisPointer', function (event) {
+						if (event.axesInfo && event.axesInfo.length > 0 && globalOwner) {
+							globalOwner.callMethod('onCrosshairMove', event.axesInfo[0].value);
+						}
+					});
 				},
-				axisPointer: { link: { xAxisIndex: 'all' } },
-				grid: [
-					{ left: '10%', right: '4%', top: '6%', height: '62%' },
-					{ left: '10%', right: '4%', top: '75%', height: '15%' }
-				],
-				xAxis: [
-					{ type: 'category', data: dates, boundaryGap: true, axisLine: { onZero: false }, splitLine: { show: false }, axisLabel: { fontSize: 10 } },
-					{ type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisTick: { show: false } }
-				],
-				yAxis: [
-					{ scale: true, splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }, axisLabel: { fontSize: 10 } },
-					{ scale: true, gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } }
-				],
-				dataZoom: [
-					{ type: 'inside', xAxisIndex: [0, 1], start: 60, end: 100 },
-					{ type: 'slider', xAxisIndex: [0, 1], bottom: '1%', start: 60, end: 100, height: 16 }
-				],
-				series: [
-					{ name: '日K', type: 'candlestick', data: kData, itemStyle: { color: '#e83828', color0: '#00a854', borderColor: '#e83828', borderColor0: '#00a854' } },
-					{ name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volData }
-				]
-			};
-			
-			myChart.setOption(option);
-			
-			myChart.off('updateAxisPointer');
-			myChart.on('updateAxisPointer', function (event) {
-				if (event.axesInfo && event.axesInfo.length > 0 && globalOwner) {
-					globalOwner.callMethod('onCrosshairMove', event.axesInfo[0].value);
-				}
-			});
-		},
 		
 		updateLandscape(newVal) {
 			if (!myChart) return;
