@@ -2,8 +2,8 @@
 	<view class="container">
 		<view class="header">
 			<view class="icon-btn" @tap="toggleDrawer"><text class="iconfont">≡</text></view>
-			<text class="title">量化终端</text>
-			<view class="icon-btn" @tap="refreshAll"><text style="font-size: 14px;">🔄</text></view>
+			<text class="title">私有策略</text>
+			<view class="icon-btn" @tap="refreshAll"><text style="font-size: 14px;">⟳</text></view>
 		</view>
 
 		<view class="tabs">
@@ -14,48 +14,55 @@
 
 		<view class="table-container">
 			<view class="table-wrapper" v-if="displayStocks.length > 0">
-				<view class="tr th">
-					<view class="td sticky-left">名称/代码</view>
-					<view class="td scroll-right">
-						<view class="cell-sparkline"></view>
-						<view class="cell-data sortable" @tap="toggleSort">涨幅 <text class="sort-icon">{{ sortIcon }}</text></view>
-						<view class="cell-data">换手率</view>
-						<view class="cell-data">成交额</view>
-					</view>
-				</view>
-
-				<view class="tr" v-for="(item, index) in displayStocks" :key="index" @tap="openKline(item)">
-					<view class="td sticky-left">
-						<view class="left-icons">
-							<text class="icon-drag">⋮⋮</text>
-							<text class="icon-pin" :style="{opacity: item.pinned ? 1 : 0.2}" @tap.stop="pinTop(index)">📌</text>
-						</view>
-						<view class="stock-info">
-							<text class="stock-name">{{ item.name || '--' }}</text>
-							<view class="code-row">
-								<text class="stock-code">{{ item.code || '--' }}</text>
-								<text class="badge st" v-if="item.isST">ST</text>
-								<text class="badge ke" v-if="item.code && item.code.startsWith('688')">科</text>
-							</view>
-						</view>
-					</view>
-
-					<view class="td scroll-right">
-						<view class="cell-sparkline">
-							<svg v-if="item.points" width="35" height="15" viewBox="0 0 35 15">
-								<polyline :points="item.points" fill="none" :stroke="item.change > 0 ? '#e83828' : '#00a854'" stroke-width="1.5" />
-							</svg>
-						</view>
-						<view class="cell-data compound-cell">
-							<view class="change-block" :class="item.change > 0 ? 'bg-red' : 'bg-green'">
-								{{ item.change > 0 ? '+' : '' }}{{ item.change !== undefined && !isNaN(item.change) ? parseFloat(item.change).toFixed(2) : '0.00' }}%
-							</view>
-							<text class="price-text">{{ item.price || '--' }}</text>
-						</view>
-						<view class="cell-data">{{ item.turnover || '--' }}%</view>
-						<view class="cell-data">{{ item.volume || '--' }}</view>
-					</view>
-				</view>
+			    <view class="tr th">
+			        <view class="td sticky-left th-left">
+			            <view class="th-title">
+			                <text class="th-name">股票名称</text>
+			                <text class="th-code">代码</text>
+			            </view>
+			        </view>
+			        <view class="td scroll-right">
+			            <view class="cell-sparkline"></view>
+			            <view class="cell-data sortable" @tap="toggleSort">涨幅 <text class="sort-icon">{{ sortIcon }}</text></view>
+			            <view class="cell-data">换手率</view>
+			            <view class="cell-data">成交量</view> <view class="cell-data">成交额</view>
+			        </view>
+			    </view>
+			
+			    <view class="tr" v-for="(item, index) in displayStocks" :key="item.code" 
+			        :class="{'is-dragging': draggingIndex === index}" 
+			        @tap="openKline(item)">
+			        
+			        <view class="td sticky-left">
+			            <view class="left-icons">
+			                <text class="icon-drag" @touchstart.stop.prevent="onDragStart($event, index)" @touchmove.stop.prevent="onDragMove" @touchend.stop.prevent="onDragEnd">⋮⋮</text>
+			                <text class="icon-pin" :style="{opacity: item.pinned ? 1 : 0.2}" @tap.stop="pinTop(item.code)">📌</text>
+			            </view>
+			            <view class="stock-info">
+			                <text class="stock-name">{{ item.name || '--' }}</text>
+			                <view class="code-row">
+			                    <text class="stock-code">{{ item.code || '--' }}</text>
+			                    <text class="badge st" v-if="item.isST">ST</text>
+			                    <text class="badge ke" v-if="item.code && item.code.startsWith('688')">科</text>
+			                </view>
+			            </view>
+			        </view>
+			
+			        <view class="td scroll-right">
+			            <view class="cell-sparkline">
+			                <svg v-if="item.points" width="35" height="15" viewBox="0 0 35 15">
+			                    <polyline :points="item.points" fill="none" :stroke="item.change > 0 ? '#e83828' : '#00a854'" stroke-width="1.5" />
+			                </svg>
+			            </view>
+			            <view class="cell-data compound-cell">
+			                <view class="change-block" :class="item.change > 0 ? 'bg-red' : 'bg-green'">
+			                    {{ item.change > 0 ? '+' : '' }}{{ item.change !== undefined && !isNaN(item.change) ? parseFloat(item.change).toFixed(2) : '0.00' }}%
+			                </view>
+			                <text class="price-text">{{ item.price || '--' }}</text>
+			            </view>
+			            <view class="cell-data">{{ item.turnover }}{{ item.turnover !== '--' ? '%' : '' }}</view>
+			            <view class="cell-data">{{ item.volumeHand }}</view> <view class="cell-data">{{ item.amountFmt }}</view>   </view>
+			    </view>
 			</view>
 			<view class="empty-state" v-else><text>{{ isLoading ? '正在加载...' : '暂无数据' }}</text></view>
 		</view>
@@ -69,7 +76,7 @@
 				<button class="menu-btn danger" @tap="handleAction('reset')">⚠️ 深度重置系统</button>
 				<view class="menu-item-row">
 					<text>显示 ST / 科创</text>
-					<switch color="#1890ff" :checked="showSpecial" @change="showSpecial = !showSpecial" style="transform:scale(0.8)"/>
+					<switch color="#1890ff" :checked="showSpecial" @change="onChangeSpecial" style="transform:scale(0.8)"/>
 				</view>
 				<button class="menu-btn outline" @tap="openConfigModal">⚙️ 配置服务器域名</button>
 			</view>
@@ -86,29 +93,6 @@
 			</view>
 		</view>
 
-		<view class="modal-overlay" v-if="isLogOpen">
-			<view class="modal-box" style="height: 60vh; display: flex; flex-direction: column;">
-				<view class="modal-title">📜 操作日志</view>
-				<scroll-view scroll-y style="flex: 1; margin-bottom: 15px; font-size: 12px; color: #666;">
-					<view style="padding: 10px; border-bottom: 1px dashed #eee;">正在向后端请求日志列表...</view>
-				</scroll-view>
-				<button class="modal-btn cancel" @tap="isLogOpen = false">关闭</button>
-			</view>
-		</view>
-
-		<view class="kline-modal" :class="{'kline-open': isKlineOpen}">
-			<view class="kline-header">
-				<text class="kline-title">{{ currentStock.name }} ({{ currentStock.code }})</text>
-				<text class="kline-close" @tap="isKlineOpen = false">关闭</text>
-			</view>
-			<view class="kline-body">
-				<view style="text-align: center; margin-top: 50%; color: #999;">
-					K线图表区域<br>
-					请求接口: /api/kline/{{ currentStock.code }}
-				</view>
-			</view>
-		</view>
-
 	</view>
 </template>
 
@@ -118,18 +102,19 @@ export default {
 		return {
 			currentStatus: 1, 
 			tabList: [ { label: '试盘', status: 1 }, { label: '回踩', status: 2 }, { label: '突破', status: 3 }, { label: '废弃', status: 99 } ],
-			counts: { 1: 0, 2: 0, 3: 0, 99: 0 }, // 存储所有池子的数量
+			counts: { 1: 0, 2: 0, 3: 0, 99: 0 },
 			sortState: 'default',
 			isDrawerOpen: false,
 			isModalOpen: false,
-			isLogOpen: false,
-			isKlineOpen: false,
-			showSpecial: false, // 默认关闭ST/科创显示
+			showSpecial: false,
 			tempUrl: '',
 			savedUrl: '',
 			isLoading: false,
 			allStocks: [],
-			currentStock: {} // 当前点击查看的股票
+			
+			// 拖动排序相关状态
+			draggingIndex: -1,
+			dragStartY: 0
 		}
 	},
 	computed: {
@@ -150,54 +135,169 @@ export default {
 		} else {
 			this.refreshAll();
 		}
+		this.fetchCounts(); // 启动时加载一次数字
+		        this.fetchDataFromPython();
 	},
 	methods: {
-		refreshAll() {
-			this.fetchCounts();
-			this.fetchDataFromPython();
-		},
-		// 独立获取各个池子的数量
-		fetchCounts() {
-			if (!this.savedUrl) return;
-			uni.request({
-				url: `${this.savedUrl}/api/counts`,
-				method: 'GET',
-				success: (res) => {
-					if (res.statusCode === 200 && res.data) {
-						this.counts = res.data; // 假设后端返回 {'1': 62, '2': 95, ...}
-					}
-				}
-			});
-		},
-		fetchDataFromPython() {
-			if (!this.savedUrl) return;
-			this.isLoading = true;
-			uni.request({
-				url: `${this.savedUrl}/api/pool/app/${this.currentStatus}`,
-				method: 'GET',
-				success: (res) => {
-					if (res.statusCode === 200 && Array.isArray(res.data)) {
-						this.allStocks = res.data.map(item => {
-							const changeVal = parseFloat(item.pct_change || item.change || 0);
-							return {
-								name: item.name, code: item.code,
-								price: item.price, change: changeVal, 
-								turnover: item.turnover, volume: item.volume,
-								status: this.currentStatus,
-								isST: item.name ? item.name.includes('ST') : false,
-								pinned: false,
-								points: item.sparkline || (changeVal > 0 ? "0,15 15,10 25,12 35,0" : "0,0 15,5 25,2 35,15")
-							}
-						});
-					} else { this.allStocks = []; }
+		// 🚀 1. 新增：开关切换事件
+				onChangeSpecial(e) {
+					this.showSpecial = e.detail.value;
+					            this.fetchCounts(); // 🚨 开关变动，立刻重新获取数字
+					            this.fetchDataFromPython(true); // 🚨 同时强制刷新当前列表数据
 				},
-				complete: () => { this.isLoading = false; }
-			});
-		},
+		// 🚀 新增：静默预加载 K 线数据 (带 Ngrok 防封锁保护)
+				async silentPreloadKLines(stockList) {
+					if (!this.savedUrl || !Array.isArray(stockList)) return;
+					
+					// 过滤出本地还没有缓存的股票
+					const needLoadStocks = stockList.filter(stock => !uni.getStorageSync(`kline_data_${stock.code}`));
+					
+					if (needLoadStocks.length === 0) return; // 全都有缓存了，收工！
+					console.log(`[静默预加载] 发现 ${needLoadStocks.length} 只股票需要缓存...`);
+		
+					// 采用 for 循环 + await，一只一只地请求，绝不并发，保护 Ngrok
+					for (let i = 0; i < needLoadStocks.length; i++) {
+						const stock = needLoadStocks[i];
+						const cacheKey = `kline_data_${stock.code}`;
+						
+						try {
+							// 包装成 Promise 以支持 await 阻塞
+							const res = await new Promise((resolve) => {
+								uni.request({
+									url: `${this.savedUrl}/api/kline/${stock.code}`,
+									method: 'GET',
+									success: (res) => resolve(res),
+									fail: () => resolve(null)
+								});
+							});
+		
+							if (res && res.statusCode === 200 && Array.isArray(res.data) && res.data.length > 0) {
+								// 拿到数据，悄悄塞进本地硬盘
+								uni.setStorageSync(cacheKey, res.data);
+							}
+							
+							// 🛡️ 核心保护：每拉完一只股票，强行休息 300 毫秒，防止 Ngrok 崩溃
+							await new Promise(r => setTimeout(r, 300));
+							
+						} catch (e) {
+							console.error(`[静默预加载] ${stock.name} 失败:`, e);
+						}
+					}
+					console.log('[静默预加载] 队列执行完毕！');
+				},
+		
+		refreshAll(force = false) {
+					if (force) {
+						// 1. 清空所有池子的列表缓存
+						[1, 2, 3, 99].forEach(status => uni.removeStorageSync(`pool_data_${status}`));
+						
+						// 2. 🚀 清空所有 K 线的详细缓存
+						try {
+							const res = uni.getStorageInfoSync();
+							res.keys.forEach(key => {
+								if (key.startsWith('kline_data_')) {
+									uni.removeStorageSync(key);
+								}
+							});
+						} catch (e) { console.error('清理 K 线缓存失败', e); }
+		
+						uni.showToast({ title: '开始全面更新数据', icon: 'loading' });
+					}
+					
+					this.fetchCounts();
+					this.fetchDataFromPython(force);
+				},
+		fetchCounts() {
+					if (!this.savedUrl) return;
+					            // 🚨 显式传递字符串格式的布尔值
+					            uni.request({
+					                url: `${this.savedUrl}/api/counts?show_special=${this.showSpecial}`,
+					                method: 'GET',
+					                success: (res) => {
+					                    if (res.statusCode === 200) {
+					                        this.counts = Object.assign({}, this.counts, res.data);
+					                    }
+					                }
+					            });
+				},
+		fetchDataFromPython(force = false) {
+					if (!this.savedUrl) return;
+					
+					const cacheKey = `pool_data_${this.currentStatus}`;
+					const cachedRawData = uni.getStorageSync(cacheKey);
+		
+					// 🚨 核心逻辑：如果不强制刷新，且本地有缓存，直接秒出！
+					if (!force && cachedRawData) {
+						this.processAndRender(cachedRawData);
+						return;
+					}
+		
+					// 没有缓存或强制刷新时，走网络请求
+					this.isLoading = true;
+					uni.request({
+					                url: `${this.savedUrl}/api/pool/app/${this.currentStatus}?show_special=${this.showSpecial}`,
+						method: 'GET',
+						success: (res) => {
+							if (res.statusCode === 200 && Array.isArray(res.data)) {
+								// 拉到数据后，立刻存入手机本地
+								uni.setStorageSync(cacheKey, res.data);
+								this.processAndRender(res.data);
+							} else { 
+								this.allStocks = []; 
+							}
+						},
+						complete: () => { this.isLoading = false; }
+					});
+				},
+		// 3. 新增：将原本繁杂的数据格式化提炼为一个独立函数
+				processAndRender(rawData) {
+					this.allStocks = rawData.map(item => {
+						const changeVal = parseFloat(item.pct_change || item.change || 0);
+						
+						let amt = item.amount || '--';
+						if (amt !== '--' && String(amt).indexOf('亿') === -1 && String(amt).indexOf('万') === -1) {
+							let v = parseFloat(amt);
+							if (!isNaN(v)) {
+								if (v >= 100000000) amt = (v / 100000000).toFixed(2) + '亿';
+								else if (v >= 10000) amt = (v / 10000).toFixed(0) + '万';
+								else amt = v.toFixed(0);
+							}
+						}
+		
+						let volHand = '--';
+						if (item.raw_volume && item.raw_volume !== '') {
+							let shares = parseFloat(item.raw_volume);
+							if (!isNaN(shares)) {
+								let hands = shares / 100;
+								if (hands >= 10000) volHand = (hands / 10000).toFixed(2) + '万手';
+								else volHand = hands.toFixed(0) + '手';
+							}
+						}
+		
+						let turn = item.turnover || '--';
+						if (turn !== '--' && !isNaN(parseFloat(turn))) turn = parseFloat(turn).toFixed(2);
+		
+						return {
+							name: item.name, code: item.code,
+							price: item.price || '--', 
+							change: changeVal, 
+							turnover: turn, 
+							volumeHand: volHand,  
+							amountFmt: amt,       
+							status: this.currentStatus,
+							isST: item.name ? item.name.includes('ST') : false,
+							pinned: false,
+							points: item.sparkline || (changeVal > 0 ? "0,15 15,10 25,12 35,0" : "0,0 15,5 25,2 35,15")
+						}
+					});
+					// 🚀 核心新增：屏幕渲染完成后，立马安排后台小弟去拉取这批股票的 K 线
+								// 不用 await，让它自己挂在后台慢慢跑，不阻塞用户操作
+								this.silentPreloadKLines(this.allStocks);
+				},
 		switchTab(status) {
 			this.currentStatus = status;
 			this.sortState = 'default';
-			this.fetchDataFromPython(); // 切换时只刷新列表数据，不刷 count 以免闪烁
+			this.fetchDataFromPython();
 		},
 		toggleSort() {
 			const states = ['default', 'desc', 'asc'];
@@ -206,7 +306,7 @@ export default {
 		toggleDrawer() { this.isDrawerOpen = !this.isDrawerOpen; },
 		openConfigModal() {
 			this.tempUrl = uni.getStorageSync('quant_server_url') || '';
-			this.isDrawerOpen = false; // 修复1: 打开弹窗时关闭侧边栏
+			this.isDrawerOpen = false;
 			this.isModalOpen = true;
 		},
 		saveConfig() {
@@ -217,32 +317,80 @@ export default {
 			this.refreshAll();
 		},
 		// 点击股票行，打开K线
-		openKline(stock) {
-		    // ⚠️ 极其关键：必须用 encodeURIComponent 将中文和 * 号等特殊字符转码！
-		    const safeName = encodeURIComponent(stock.name);
-		    
-		    uni.navigateTo({
-		        url: `/pages/kline/kline?code=${stock.code}&name=${safeName}`,
-		        fail: (err) => {
-		            console.error("【跳转失败】", err);
-		            uni.showToast({ title: '跳转失败，请重试', icon: 'none' });
-		        }
-		    });
+				openKline(stock) {
+				    // ⚠️ 增加传递 status 参数，告诉 K 线页加载哪个侧边栏列表
+				    const safeName = encodeURIComponent(stock.name);
+				    
+				    uni.navigateTo({
+				        url: `/pages/kline/kline?code=${stock.code}&name=${safeName}&status=${stock.status}`,
+				        fail: (err) => {
+				            console.error("【跳转失败】", err);
+				            uni.showToast({ title: '跳转失败，请重试', icon: 'none' });
+				        }
+				    });
+				},
+		// 优化：使用 code 作为唯一标识进行置顶，避免因为排序导致 index 错乱
+		pinTop(code) {
+			const targetIndex = this.allStocks.findIndex(s => s.code === code);
+			if (targetIndex > -1) {
+				const stock = this.allStocks.splice(targetIndex, 1)[0];
+				stock.pinned = !stock.pinned;
+				this.allStocks.unshift(stock);
+			}
 		},
-		// 点击图钉置顶
-		pinTop(index) {
-			// 在前端数组里把这只票移到最前面
-			const stock = this.allStocks.splice(index, 1)[0];
-			stock.pinned = !stock.pinned;
-			this.allStocks.unshift(stock);
+		
+		// --- 核心：触摸拖动排序逻辑 ---
+		onDragStart(e, index) {
+			// 如果处于涨幅排序状态，禁止手动拖动，防止逻辑冲突
+			if (this.sortState !== 'default') {
+				uni.showToast({ title: '请先点击涨幅恢复默认排序', icon: 'none' });
+				return;
+			}
+			this.draggingIndex = index;
+			this.dragStartY = e.touches[0].clientY;
+			// 触发手机轻微震动反馈
+			// #ifdef APP-PLUS
+			uni.vibrateShort();
+			// #endif
 		},
+		onDragMove(e) {
+			if (this.draggingIndex === -1) return;
+			const currentY = e.touches[0].clientY;
+			const diff = currentY - this.dragStartY;
+			const rowHeight = 45; // 近似的一行高度，用于触发交换阈值
+
+			// 当滑动距离超过一行的高度时，触发位置交换
+			if (Math.abs(diff) > rowHeight) {
+				const offset = diff > 0 ? 1 : -1;
+				let targetIndex = this.draggingIndex + offset;
+
+				if (targetIndex >= 0 && targetIndex < this.displayStocks.length) {
+					// 找到当前项和目标项在总数据源中的真实索引
+					const currentItem = this.displayStocks[this.draggingIndex];
+					const targetItem = this.displayStocks[targetIndex];
+					const allCurrentIdx = this.allStocks.indexOf(currentItem);
+					const allTargetIdx = this.allStocks.indexOf(targetItem);
+
+					if (allCurrentIdx > -1 && allTargetIdx > -1) {
+						// 响应式交换数据
+						const item = this.allStocks.splice(allCurrentIdx, 1)[0];
+						this.allStocks.splice(allTargetIdx, 0, item);
+						
+						this.draggingIndex = targetIndex;
+						this.dragStartY = currentY; // 重置起始点
+					}
+				}
+			}
+		},
+		onDragEnd() {
+			this.draggingIndex = -1;
+		},
+		// ---------------------------------
+		
 		handleAction(actionType) {
 		   this.isDrawerOpen = false;
-		       if (actionType === 'log') {
-		           uni.navigateTo({
-		               url: '/pages/log/log',
-		               fail: (err) => { console.error("日志页跳转失败:", err); }
-		           });
+		   if (actionType === 'log') {
+			   uni.navigateTo({ url: '/pages/log/log' });
 			} else {
 				let apiEndpoint = actionType === 'sync' ? '/api/run_strategy' : '/api/reset_bootstrap';
 				uni.showLoading({ title: '执行中...' });
@@ -259,20 +407,43 @@ export default {
 </script>
 
 <style scoped>
+/* 修复了原生导航栏重叠和刘海屏问题 */
+.header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    height: 44px; padding-top: var(--status-bar-height); padding-left: 15px; padding-right: 15px;
+    background: #f8f9fa; border-bottom: 1px solid #eee; flex-shrink: 0; 
+    box-sizing: content-box; 
+}
+
 .container { width: 100vw; height: 100vh; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
-.header { display: flex; justify-content: space-between; align-items: center; height: 44px; padding: 0 15px; background: #f8f9fa; border-bottom: 1px solid #eee; flex-shrink: 0; }
 .tabs { display: flex; border-bottom: 1px solid #eee; background: #fff; flex-shrink: 0; }
-.tab { flex: 1; text-align: center; padding: 12px 0; font-size: 12px; color: #666; transition: 0.2s; }
+.tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; color: #666; transition: 0.2s; }
 .tab.active { color: #1890ff; font-weight: bold; position: relative; }
-.tab.active::after { content: ''; position: absolute; bottom: 0; left: 20%; width: 60%; height: 3px; background: #1890ff; border-radius: 2px; }
+.tab.active::after { content: ''; position: absolute; bottom: 0; left: 30%; width: 40%; height: 3px; background: #1890ff; border-radius: 2px; }
 
 .table-container { flex: 1; overflow: hidden; position: relative; }
 .table-wrapper { height: 100%; overflow: auto; display: flex; flex-direction: column; }
-.tr { display: flex; width: max-content; min-width: 100%; border-bottom: 1px solid #f5f5f5; }
-.th { background: #fafafa; position: sticky; top: 0; z-index: 20; height: 35px; }
+.tr { display: flex; width: max-content; min-width: 100%; border-bottom: 1px solid #f9f9f9; background: #fff; transition: background 0.2s; }
 
-.sticky-left { position: sticky; left: 0; background: #fff; z-index: 10; width: 130px; flex-shrink: 0; display: flex; align-items: center; border-right: 1px solid #f0f0f0; padding-left: 10px; }
-.th .sticky-left { background: #fafafa; z-index: 11; }
+/* 拖拽状态的高亮提示 */
+.is-dragging { background: #f0f7ff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 9; position: relative; }
+
+.th { background: #fafafa; position: sticky; top: 0; z-index: 20; height: 38px; }
+
+/* 优化2：减小固定列宽度，收缩留白 */
+.sticky-left { 
+	position: sticky; left: 0; background: #fff; z-index: 10; 
+	width: 106px; /* 宽度从 130px 缩减到 106px，消除大量空白 */
+	box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; 
+	border-right: 1px solid #f0f0f0; padding-left: 8px; 
+}
+.th-left { background: #fafafa; z-index: 11; }
+
+/* 优化3：表头样式重构 */
+.th-title { display: flex; align-items: baseline; gap: 4px; padding-left: 4px;}
+.th-name { font-size: 13px; font-weight: bold; color: #333; }
+.th-code { font-size: 10px; color: #999; font-weight: normal; }
+
 .scroll-right { display: flex; }
 .cell-data { width: 80px; text-align: center; display: flex; justify-content: center; align-items: center; flex-shrink: 0; font-size: 13px; }
 .cell-sparkline { width: 45px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -284,34 +455,27 @@ export default {
 .price-text { font-size: 11px; color: #999; margin-top: 2px; }
 
 .stock-info { display: flex; flex-direction: column; }
-.stock-name { font-size: 14px; font-weight: bold; color: #333; }
-.code-row { display: flex; align-items: center; }
-.stock-code { font-size: 10px; color: #999; margin-right: 4px; }
+.stock-name { font-size: 15px; font-weight: bold; color: #333; }
+.code-row { display: flex; align-items: center; margin-top: 1px; }
+.stock-code { font-size: 11px; color: #999; margin-right: 4px; }
 .badge { font-size: 9px; border: 1px solid; padding: 0 2px; border-radius: 2px; margin-left: 2px; line-height: 1; }
 .badge.st { border-color: #faad14; color: #faad14; }
 .badge.ke { border-color: #1890ff; color: #1890ff; }
-.left-icons { display: flex; flex-direction: column; margin-right: 6px; font-size: 10px; color: #ccc; }
+
+.left-icons { display: flex; flex-direction: column; margin-right: 8px; font-size: 12px; color: #bbb; align-items: center; }
+.icon-drag { padding: 4px 2px; font-size: 10px; cursor: grab; }
 
 .empty-state { padding: 50px; text-align: center; color: #999; font-size: 14px; }
 
-/* 侧边栏 */
+/* 侧边栏和弹窗样式... (与原代码一致) */
 .drawer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 100; }
 .drawer-panel { position: fixed; top: 0; left: -260px; width: 240px; height: 100vh; background: #fff; z-index: 101; transition: 0.3s; padding: 40px 15px; }
 .drawer-open { left: 0; }
 .menu-btn { width: 100%; margin-bottom: 12px; font-size: 14px; background: #f5f5f5; border: none; }
-
-/* 修复1: 提升弹窗层级，遮盖所有元素 */
+.menu-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; font-size: 14px; color: #333; background: #fafafa; border-radius: 6px; margin-bottom: 12px; }
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; }
 .modal-box { width: 80%; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
 .modal-input { border: 1px solid #ddd; padding: 10px; border-radius: 6px; margin: 15px 0; width: 90%; }
 .modal-actions { display: flex; gap: 10px; }
 .modal-btn { flex: 1; font-size: 14px; }
-
-/* 详情 K 线弹窗 */
-.kline-modal { position: fixed; bottom: -100%; left: 0; width: 100vw; height: 90vh; background: #fff; z-index: 8888; transition: bottom 0.3s; border-radius: 15px 15px 0 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
-.kline-open { bottom: 0; }
-.kline-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-.kline-title { font-size: 16px; font-weight: bold; }
-.kline-close { color: #1890ff; font-size: 14px; }
-.kline-body { flex: 1; background: #f9f9f9; }
 </style>
