@@ -165,6 +165,10 @@ export default {
 			} else {
 				uni.request({
 					url: `${this.savedUrl}/api/pool/app/${this.currentStatus}`,
+					header: {
+					        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+					        "ngrok-skip-browser-warning": "69420" 
+					    },
 					success: (res) => { if (res.statusCode === 200) this.stockList = res.data; }
 				});
 			}
@@ -186,6 +190,10 @@ export default {
 
 			uni.request({
 				url: `${this.savedUrl}/api/kline/${this.currentCode}`,
+				header: {
+				        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+				        "ngrok-skip-browser-warning": "69420" 
+				    },
 				success: (res) => {
 					if (res.statusCode === 200 && Array.isArray(res.data) && res.data.length > 0) {
 						this.loadingText = '';

@@ -73,6 +73,10 @@ export default {
 			uni.showLoading({ title: '同步审计日志...' });
 			uni.request({
 				url: baseUrl + '/api/logs',
+				header: {
+				        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+				        "ngrok-skip-browser-warning": "69420" 
+				    },
 				success: (res) => {
 					// 确保数据结构正确
 					this.logData = res.data || {};
@@ -119,6 +123,10 @@ export default {
 			uni.request({
 				url: baseUrl + '/api/update_status',
 				method: 'POST',
+				header: {
+				        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+				        "ngrok-skip-browser-warning": "69420" 
+				    },
 				data: { code: code, new_status: newStatus, source: 'App上帝模式' },
 				success: () => {
 					uni.showToast({ title: '强制覆盖成功' });

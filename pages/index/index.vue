@@ -180,6 +180,10 @@
 				uni.request({
 					url: this.savedUrl + '/api/task_status',
 					method: 'GET',
+					header: {
+					        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+					        "ngrok-skip-browser-warning": "69420" 
+					    },
 					success: (res) => {
 						if (res.statusCode === 200) {
 							this.isTaskRunning = res.data.is_running;
@@ -246,6 +250,10 @@
 							uni.request({
 								url: `${this.savedUrl}/api/kline/${stock.code}`,
 								method: 'GET',
+								header: {
+								        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+								        "ngrok-skip-browser-warning": "69420" 
+								    },
 								success: (res) => resolve(res),
 								fail: () => resolve(null)
 							});
@@ -298,6 +306,10 @@
 				uni.request({
 					url: `${this.savedUrl}/api/counts?show_special=${this.showSpecial}`,
 					method: 'GET',
+					header: {
+					        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+					        "ngrok-skip-browser-warning": "69420" 
+					    },
 					success: (res) => {
 						if (res.statusCode === 200) {
 							this.counts = Object.assign({}, this.counts, res.data);
@@ -322,6 +334,10 @@
 				uni.request({
 					url: `${this.savedUrl}/api/pool/app/${this.currentStatus}?show_special=${this.showSpecial}`,
 					method: 'GET',
+					header: {
+					        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+					        "ngrok-skip-browser-warning": "69420" 
+					    },
 					success: (res) => {
 						if (res.statusCode === 200 && Array.isArray(res.data)) {
 							// 拉到数据后，立刻存入手机本地
@@ -533,6 +549,10 @@
 				uni.request({
 					url: this.savedUrl + apiEndpoint,
 					method: 'POST',
+					header: {
+					        // 🚨 关键：添加这个 header 可以直接跳过 ngrok 的警告中间页
+					        "ngrok-skip-browser-warning": "69420" 
+					    },
 					data: actionType === 'sync' ? {
 						source: '按钮处理'
 					} : {},
