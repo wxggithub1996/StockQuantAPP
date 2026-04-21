@@ -46,6 +46,7 @@
 							<text class="stock-name">{{ item.name || '--' }}</text>
 							<view class="code-row">
 								<text class="stock-code">{{ item.code || '--' }}</text>
+								<text v-if="item.is_new" class="new-badge">新</text>
 								<text class="badge st" v-if="item.isST">ST</text>
 								<text class="badge ke" v-if="item.code && item.code.startsWith('688')">科</text>
 							</view>
@@ -341,7 +342,6 @@
 					success: (res) => {
 						if (res.statusCode === 200 && Array.isArray(res.data)) {
 							// 拉到数据后，立刻存入手机本地
-							uni.setStorageSync(cacheKey, res.data);
 							this.processAndRender(res.data);
 						} else {
 							this.allStocks = [];
@@ -353,11 +353,12 @@
 				});
 			},
 			// 3. 新增：将原本繁杂的数据格式化提炼为一个独立函数
-			processAndRender(rawData) {
-				this.allStocks = rawData.map(item => {
+			normalizeStocks(rawData) {
+				if (!Array.isArray(rawData)) return [];
+				return rawData.map(item => {
 					const changeVal = parseFloat(item.pct_change || item.change || 0);
 
-					let amt = item.amount || '--';
+					let amt = item.amountFmt || item.amount || '--';
 					if (amt !== '--' && String(amt).indexOf('亿') === -1 && String(amt).indexOf('万') === -1) {
 						let v = parseFloat(amt);
 						if (!isNaN(v)) {
@@ -367,8 +368,8 @@
 						}
 					}
 
-					let volHand = '--';
-					if (item.raw_volume && item.raw_volume !== '') {
+					let volHand = item.volumeHand || '--';
+					if (volHand === '--' && item.raw_volume && item.raw_volume !== '') {
 						let shares = parseFloat(item.raw_volume);
 						if (!isNaN(shares)) {
 							let hands = shares / 100;
@@ -388,14 +389,20 @@
 						turnover: turn,
 						volumeHand: volHand,
 						amountFmt: amt,
-						status: this.currentStatus,
-						isST: item.name ? item.name.includes('ST') : false,
-						pinned: false,
-						points: item.sparkline || (changeVal > 0 ? "0,15 15,10 25,12 35,0" : "0,0 15,5 25,2 35,15")
+						status: item.status || this.currentStatus,
+						isST: item.isST === true || (item.name ? item.name.includes('ST') : false),
+						is_new: item.is_new === true,
+						pinned: item.pinned === true,
+						points: item.points || item.sparkline || (changeVal > 0 ? "0,15 15,10 25,12 35,0" : "0,0 15,5 25,2 35,15")
 					}
 				});
-				// 🚀 核心新增：屏幕渲染完成后，立马安排后台小弟去拉取这批股票的 K 线
-				// 不用 await，让它自己挂在后台慢慢跑，不阻塞用户操作
+			},
+			persistCurrentListCache() {
+				uni.setStorageSync(`pool_data_${this.currentStatus}`, this.allStocks);
+			},
+			processAndRender(rawData) {
+				this.allStocks = this.normalizeStocks(rawData);
+				this.persistCurrentListCache();
 				this.silentPreloadKLines(this.allStocks);
 			},
 			switchTab(status) {
@@ -445,6 +452,7 @@
 					const stock = this.allStocks.splice(targetIndex, 1)[0];
 					stock.pinned = !stock.pinned;
 					this.allStocks.unshift(stock);
+					this.persistCurrentListCache();
 				}
 			},
 
@@ -496,6 +504,7 @@
 			},
 			onDragEnd() {
 				this.draggingIndex = -1;
+				this.persistCurrentListCache();
 			},
 			// ---------------------------------
 			// 🚨 拦截层：只负责弹窗和确认，绝对不在这里写 uni.request
@@ -578,20 +587,21 @@
 					}
 				});
 			},
-			// 列表排序/置顶也建议加上密码校验
-			pinTop(index) {
-				this.requireAuth(() => {
-					const stock = this.allStocks.splice(index, 1)[0];
-					stock.pinned = !stock.pinned;
-					this.allStocks.unshift(stock);
-					// 可以在此处同步到后端或本地持久化
-				});
-			}
 		}
 	}
 </script>
 
 <style scoped>
+	.new-badge {
+	    background-color: #ff4d4f;
+	    color: #fff;
+	    font-size: 20rpx;
+	    padding: 2rpx 8rpx;
+	    border-radius: 6rpx;
+	    margin-left: 10rpx;
+	    font-weight: bold;
+	}
+	
 	/* 修复了原生导航栏重叠和刘海屏问题 */
 	.header {
 		display: flex;
@@ -783,6 +793,8 @@
 	.stock-info {
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.stock-name {
@@ -794,13 +806,14 @@
 	.code-row {
 		display: flex;
 		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px;
 		margin-top: 1px;
 	}
 
 	.stock-code {
 		font-size: 11px;
 		color: #999;
-		margin-right: 4px;
 	}
 
 	.badge {
